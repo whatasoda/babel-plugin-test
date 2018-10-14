@@ -1,2 +1,2 @@
-# babel-plugin-test
-babelのpluginを作るテスト
+# soda-flow-babel-plugin
+soda-flow用babel pluginのrepo

@@ -2,47 +2,39 @@ import * as Babel from '@babel/core';
 import createStepGenerator from './step';
 
 export = ({ types: t }: typeof Babel): Babel.PluginObj => {
-  const genStep = createStepGenerator(t);
+  const { applyStep, wrapProgram } = createStepGenerator('$', t);
   return {
     visitor: {
+      Program(path) {
+        wrapProgram(path);
+      },
+      
       VariableDeclaration(path) {
-        path.get('declarations').forEach(declaration => {
-          const initPath = declaration.get('init');
-          if (initPath.node) {
-            const step = genStep('init', initPath.node);
-            if (step) initPath.replaceWith(step);
+        applyStep(
+          path.get('declarations').map(declaration => declaration.get('init')),
+          ({ parent }) => {
+            if (!t.isVariableDeclarator(parent)) return;
+            const { id } = parent;
+            if (!t.isIdentifier(id)) return;
+            const { name } = id;
+            return { name };
           }
-        });
+        );
       },
       
       ArrowFunctionExpression(path) {
         path.node.async = true;
-        const funcStep = genStep('func', path.node);
-        if (funcStep) {
-          path.replaceWith(funcStep);
-        }
+        applyStep([path]);
       },
       
       MemberExpression(path) {
-        const memStep = genStep('member', path.node);
-        if (memStep) {
-          path.replaceWith(memStep);
-        }
-        
-        const objStep = genStep('memberObj', path.node.object);
-        if (objStep) {
-          path.get('object').replaceWith(objStep);
-        }
+        applyStep([path.get('object'), path]);
       },
       
       CallExpression(path) {
-        path.get('arguments').forEach((argument) => {
-          const step = genStep('callArg', argument.node);
-          if (step) {
-            argument.replaceWith(step);
-          }
-        })
+        applyStep([...path.get('arguments'), path]);
       },
+      
     },
     
   }
